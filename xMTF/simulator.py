@@ -572,7 +572,7 @@ def search():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("AAAI-2023...")
+    parser = argparse.ArgumentParser("WWW-2025...")
     parser.add_argument("--mfc_mode", type=str, default="")
     parser.add_argument("--exit_mode", type=str, default="satisfy")  # 默认模式为"satisfy"，另一种模型为"vv"
     parser.add_argument('--step_id', type=str, default="step1")

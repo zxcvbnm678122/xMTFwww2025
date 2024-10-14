@@ -67,7 +67,7 @@ def fillna_df(df, features):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("AAAI-2023...")
+    parser = argparse.ArgumentParser("WWW-2025...")
     parser.add_argument("--data_path", type=str, default="KuaiRand-1K")
     parser.add_argument("--split_date", type=str, default="2022-05-05")
     parser.add_argument("--validation_split", type=float, default=0.1)
