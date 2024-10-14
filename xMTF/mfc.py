@@ -47,7 +47,7 @@ class MfcBaseModel(Model):
     def __init__(self):
         super(MfcBaseModel, self).__init__()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-        self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True,label_smoothing=0)
+        self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=False,label_smoothing=0)
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
         self.bn=64
         self.dim_hidden=128
@@ -69,27 +69,15 @@ class MfcBaseModel(Model):
         for i in range(self.task_num):
             layers = [
                 # tf.keras.layers.Dense(256, activation='relu', name=f'dense1_task_{i}'),
-                tf.keras.layers.Dense(32, activation='relu', name=f'dense2_task_{i}'),
-                tf.keras.layers.Dense(1, activation='sigmoid', name=f'dense3_task_{i}')
+                tf.keras.layers.Dense(32, activation='relu', use_bias=True,name=f'dense2_task_{i}'),
+                tf.keras.layers.Dense(1, activation='sigmoid', use_bias=True,name=f'dense3_task_{i}')
             ]
             self.denses.append(layers)
             
         self.dense1 = tf.keras.layers.Dense(256, use_bias=True, activation=tf.nn.relu, kernel_initializer='RandomNormal', name='dense1')
         self.dense2 = tf.keras.layers.Dense(64, use_bias=True, activation=tf.nn.relu, kernel_initializer='RandomNormal', name='dense2')
-        self.dense3 = tf.keras.layers.Dense(1, use_bias=True, activation=tf.nn.sigmoid, kernel_initializer='RandomNormal', name='dense3')
-        self.densefinal = tf.keras.layers.Dense(1, use_bias=True, activation=tf.nn.sigmoid,kernel_initializer='RandomNormal', name='densefinal')
-    # def build(self,input_shape):
-    #     self.I = tf.Variable(tf.random.truncated_normal([1, 50, 768],mean=0,stddev=.5),name= '_inducing_points')  # [1, num_inds, hidden_dim]
-    #     self.S = tf.Variable(tf.random.truncated_normal([1, 50, 768],mean=0,stddev=.5),name= '_seed1_vectors')
-    #     #self.denseQ = tf.layers.dense(768,use_bias=False, kernel_initializer='glorot_normal', name='denseq')
-    #     #self.denseK = tf.keras.layers.Dense(768,use_bias=False, kernel_initializer='glorot_normal', name='densek')
-    #     #self.denseV = tf.keras.layers.Dense(768,use_bias=False, kernel_initializer='glorot_normal', name='densev')
-    #     #self.denseagg = tf.keras.layers.Dense(768, use_bias=False, kernel_initializer='glorot_normal', name='denseagg')
-    #     #self.dense1 = tf.keras.layers.Dense(256, use_bias=True, activation=tf.nn.relu, kernel_initializer='glorot_normal', name='dense1')
-    #     #self.dense2 = tf.keras.layers.Dense(64, use_bias=True, activation=tf.nn.relu, kernel_initializer='glorot_normal', name='dense2')
-    #     #self.dense3 = tf.keras.layers.Dense(1, use_bias=True, activation=tf.nn.sigmoid, kernel_initializer='glorot_normal', name='dense3')
-    #     #self.densefinal = tf.keras.layers.Dense(1, use_bias=True, activation=tf.nn.sigmoid,kernel_initializer='glorot_normal', name='densefinal')
-    #     super(MfcBaseModel,self).build(input_shape)
+        self.dense3 = tf.keras.layers.Dense(1, use_bias=True, activation=tf.nn.relu, kernel_initializer='RandomNormal', name='dense3')
+        self.densefinal = tf.keras.layers.Dense(1, activation=tf.nn.sigmoid,kernel_initializer='he_normal', name='densefinal')
 
     def handle_input(self,dense_input,batch_size):
         batch_size=batch_size
@@ -132,6 +120,7 @@ class MfcBaseModel(Model):
         return vtr_output,ltr_output, wdsr_output, ftr_output, fpr_output, evr_p60_output,final_output
 
     def train_step(self,model_input,labels):
+        mfc_loss_weight=0.4
         splits = tf.split(model_input, 6, axis=2)
         #原始的各pxtr的输入，可以直接当label [BS,500,1]
         batch_size=model_input.shape[0]
@@ -139,24 +128,17 @@ class MfcBaseModel(Model):
         model_input=self.handle_input(model_input,batch_size)
         with tf.GradientTape() as tape:
             vtr_output,ltr_output, wdsr_output, ftr_output, fpr_output, evr_p60_output,final_output = self(model_input)
-            # tf.print("model_input",model_input[0])
-            # tf.print("vtr_output",vtr_output[0])
-            # tf.print("ltr_output",ltr_output[0])
-            # tf.print("final_output",ltr_output)
-            # tf.print("labels",labels)
-            # print(final_output.dtype)
-            # print(final_output.shape)
             labels = tf.cast(labels,tf.float32)
-            # print(final_output)
-            # print(labels)
-            loss_final = self.loss_object(final_output, labels)
-            tf.print("loss_final",loss_final)
-            loss_0 = self.loss_object(vtr_output, labels)
-            loss_1 = self.loss_object(ltr_output, labels)
-            loss_2 = self.loss_object(wdsr_output, labels)
-            loss_3 = self.loss_object(ftr_output, labels)
-            loss_4 = self.loss_object(fpr_output, labels)
-            loss_5 = self.loss_object(evr_p60_output, labels)
+            loss_final = self.loss_object(labels,final_output)
+            #tf.print("loss_final",loss_final)
+            loss_0 = self.loss_object(labels,vtr_output)
+            tf.print("long view",evr_p60_output[0])
+            tf.print("final_output",final_output[0])
+            loss_1 = self.loss_object(labels,ltr_output)
+            loss_2 = self.loss_object(labels,wdsr_output)
+            loss_3 = self.loss_object(labels,ftr_output)
+            loss_4 = self.loss_object(labels,fpr_output)
+            loss_5 = self.loss_object(labels,evr_p60_output)
             loss_pw_0 = pairwise_loss(vtr_output,pxtr_list_0)
             loss_pw_1 = pairwise_loss(ltr_output,pxtr_list_1)
             loss_pw_2 = pairwise_loss(wdsr_output,pxtr_list_2)
@@ -175,10 +157,8 @@ class MfcBaseModel(Model):
             tf.print("loss_pw_3",loss_pw_3)
             tf.print("loss_pw_4",loss_pw_4)
             tf.print("loss_pw_5",loss_pw_5)
-            loss = loss_final+loss_0+loss_1+loss_2+loss_3+loss_4+loss_5+loss_pw_0+loss_pw_1+loss_pw_2+loss_pw_3+loss_pw_4+loss_pw_5
-            tf.print("total_loss",loss)
-            # for var in MfcModel.variables:
-            #     print(f"Variable: {var.name}, Shape: {var.shape}")
+            loss =(1-mfc_loss_weight)*(loss_final+ loss_0+ loss_1+ loss_2+ loss_3+ loss_4+ loss_5)+mfc_loss_weight*(loss_pw_0+loss_pw_1+loss_pw_2+loss_pw_3+loss_pw_4+loss_pw_5)
+            tf.print("loss_all",loss)
         gradients = tape.gradient(loss, self.trainable_variables)
         # for var in MfcModel.trainable_variables:
         #     print(f"Variable: {var.name}, Shape: {var.shape}")
@@ -215,20 +195,9 @@ class MfcBaseModel(Model):
         # d_model = dim_V // num_heads
         batch_size = tf.shape(X)[0]
         seq_len = X.shape.as_list()[1]
-        # Q_ = self.split_heads(Q, batch_size, num_heads, d_model)
-        # K_ = self.split_heads(K, batch_size, num_heads, d_model)
-        # V_ = self.split_heads(V, batch_size, num_heads, d_model)
-
         scaled_attention, attention_weights = self.scaled_dot_product_attention(Q, K, V)
-        # scaled_attention = scaled_attention + Q_  # skip connection
-        #scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])  # (batch_size, seq_len_q, num_heads, d_model)
-        #output = tf.reshape(scaled_attention, (batch_size, seq_len, dim_V))  # (batch_size, seq_len_q, d_model)
-        # output = dense(concat_attention, dim_V, dim_V, name=name+'_agg')  # (batch_size, seq_len_q, d_model)
         output = scaled_attention
         output = self.layer_norm(output)
-        #tf.print("output",output)
-        #output_agg = self.denseagg(output)
-        #output = output + output_agg if skip_connection else output_agg
         return output
 
     def MSA(self,X, Y, dim_Q, dim_K, dim_V,  ln=False, skip_connection=False, name="msa"):
@@ -291,28 +260,7 @@ class MfcBaseModel(Model):
     def SetTransformer(self, X, dim_in, dim_hidden, dim_out, num_inds=-1, num_seeds=2,
                     enc_layer=0, dec_layer=1, ln=True, skip_connection=True, 
                     rff=False, task_num=1, name="s2s"):
-        # X: [-1, candidate_num, dim_in]
-
-        # encoder: ISAB*enc_layer
-        # X = dense(X, dim_in, dim_hidden, bias=True, name=name+'_input')  # [-1, 400, 64]
-        # X = self.ISAB(X, dim_in, dim_hidden, num_inds=num_inds, ln=ln, 
-        #         skip_connection=skip_connection, name=name+f'_enc0')
-
-        # for i in range(1, enc_layer):
-        #     X = self.ISAB(X, dim_hidden, dim_hidden,  num_inds=num_inds, ln=ln, 
-        #             skip_connection=skip_connection, name=name+f'_enc{i}')
-
-        # # # decoder: PMA + SAB*dec_layer + rFF
-        # if dec_layer > 0:
-        #     X = self.PMA(X, dim_hidden, num_seeds=num_seeds, ln=ln, 
-        #             skip_connection=skip_connection, name=name+'_dec_pma')
-        # for i in range(dec_layer):
-        #     X = self.SAB(X, dim_hidden, ln=ln, 
-        #             skip_connection=skip_connection, name=name+f'_dec{i}')
-        
         X = self.MSA_self(X,X)
-        #X=self.denseQ1(X)
-        #tf.print("after_self_attn",X)
         outputs_list = []
         for layers in self.denses:
             x = X
