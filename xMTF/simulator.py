@@ -126,7 +126,7 @@ class User(object):
         用户观看视频, 返回 done 标志
         """
         if exit_mode == 'satisfy':
-            if self.satisfaction < 0.1 or self.view_count >= 97:
+            if self.satisfaction < 0.1:
                 # 退出模拟
                 print(f"用户 {self.user_id} 满意度过低, 已退出本次模拟, 总观看视频数: {self.view_count}, 总观看时间: {self.watch_time:0.1f} s")
                 return True, 0
@@ -150,8 +150,7 @@ class User(object):
         print(f"用户 {self.user_id} 浏览了视频 {video_id}, 观看时长为: {video_watch_time:0.1f} s, reward 数值为: {reward:0.4f}, 满意度变化: {self.satisfaction:0.4f} => {new_satisfaction:0.4f}")
         print(f"用户 {self.user_id} 总计浏览视频次数: {self.view_count}, 总计观看时长为: {self.watch_time:0.1f} s, 精排候选集数目: {len(self.selected_fullrank_df)}")
 
-        if len(self.selected_fullrank_df) <= 950:
-            raise RuntimeError('Invalid Fullrank')
+  
         
         self.satisfaction = new_satisfaction
         return False, reward
@@ -463,7 +462,7 @@ def test():
 
         # for i in range(len(unique_user_ids)):
         # for i in tqdm(range(0, 10)):
-        selected_user_ids = np.random.choice(unique_user_ids, size=1, replace=False)
+        selected_user_ids = np.random.choice(unique_user_ids, size=100, replace=False)
         for i in tqdm(range(0, len(selected_user_ids))):
             current_user_id = selected_user_ids[i]  # 当前user_id
             s = test_env.reset(user_id=current_user_id)
